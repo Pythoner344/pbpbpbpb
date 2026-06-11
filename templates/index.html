@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyGPT 5.6 | Workspace</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #212121;
+            --bg-sidebar: #171717;
+            --bg-panel: #2f2f2f;
+            --border-color: #3f3f46;
+            --accent: #059669;
+            --accent-hover: #047857;
+            --text-main: #e4e4e7;
+            --text-muted: #a1a1aa;
+        }
+
+        [data-theme="purple"] {
+            --bg-base: #130c1e;
+            --bg-sidebar: #0b0712;
+            --bg-panel: #1e1332;
+            --border-color: #3b2866;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --text-main: #ede9fe;
+            --text-muted: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { background-color: var(--bg-base); color: var(--text-main); font-family: system-ui, sans-serif; transition: background-color 0.3s; height: 100vh; overflow: hidden; }
+        
+        .theme-sidebar { background-color: var(--bg-sidebar); border-color: var(--border-color); }
+        .theme-border { border-color: var(--border-color) !important; }
+        .theme-panel { background-color: var(--bg-panel); }
+        .theme-accent { background-color: var(--accent); color: white; }
+        .theme-text-accent { color: var(--accent); }
+        .theme-hover-panel:hover { background-color: var(--bg-panel); }
+        .theme-text-muted { color: var(--text-muted); }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background-color: var(--bg-panel); border-radius: 10px; }
+        
+        pre { background: #00000080 !important; padding: 14px; border-radius: 12px; position: relative; margin: 12px 0; overflow-x: auto; border: 1px solid var(--border-color); backdrop-filter: blur(4px); }
+        .copy-btn { position: absolute; right: 8px; top: 8px; font-size: 11px; background: var(--bg-panel); padding: 4px 8px; border-radius: 6px; cursor: pointer; color: var(--text-main); transition: 0.2s; }
+        .copy-btn:hover { background: var(--accent); color: white; }
+        .sidebar-transition { transition: transform 0.3s ease-in-out; }
+        
+        .glass-header { background: color-mix(in srgb, var(--bg-base) 85%, transparent); backdrop-filter: blur(12px); }
+        
+        .messages-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+            position: relative;
+        }
+        
+        .input-wrapper {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Автоматическая адаптивность для таблиц из Marked.js */
+        .message-text table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            background: var(--bg-panel);
+            border-radius: 12px;
+            overflow: hidden;
+            display: block;
+            overflow-x: auto;
+        }
+        .message-text th,
+        .message-text td {
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            text-align: left;
+        }
+        .message-text th {
+            background: var(--bg-sidebar);
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .message-text tr:hover {
+            background: color-mix(in srgb, var(--bg-panel) 80%, white);
+        }
+    </style>
+</head>
+<body class="flex h-screen w-screen overflow-hidden" data-theme="dark">
+
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="hidden fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"></div>
+
+    <div id="sidebar" class="theme-sidebar sidebar-transition fixed inset-y-0 left-0 w-64 flex flex-col h-full border-r text-sm z-40 -translate-x-full md:translate-x-0 md:relative md:flex">
+        <div class="p-3.5 flex items-center justify-between">
+            <button onclick="createNewChat()" class="flex-1 flex items-center justify-between p-2.5 theme-border border rounded-lg transition theme-hover-panel mr-2 shadow-sm">
+                <span class="font-medium">+ Создать чат</span>
+            </button>
+            <button onclick="toggleSidebar()" class="md:hidden p-2 theme-text-muted">✕</button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto px-3 space-y-1 custom-scroll" id="chatsList">
+            {% for chat in chats %}
+                <div onclick="selectChat({{ chat.id }})" id="chat-item-{{ chat.id }}" class="chat-item p-3 rounded-lg theme-text-muted cursor-pointer truncate transition flex items-center gap-2 hover:text-white theme-hover-panel">
+                    <span>💬</span>
+                    <span class="truncate">{{ chat.title }}</span>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="p-3 border-t theme-border flex items-center justify-between text-xs bg-black/20">
+            <button onclick="openSettings()" class="flex items-center gap-2 hover:opacity-80 transition flex-1 truncate text-left">
+                <span class="w-6 h-6 theme-accent rounded-full flex items-center justify-center text-[10px] font-bold shadow-lg">E</span>
+                <span class="truncate font-medium">{{ username }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 ml-auto theme-text-muted"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.99l1.004.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col h-full min-w-0 bg-cover" style="background-color: var(--bg-base);">
+        
+        <div class="h-14 theme-border border-b flex items-center justify-between px-4 glass-header flex-shrink-0">
+            <button onclick="toggleSidebar()" class="p-2 theme-text-muted hover:text-white md:hidden">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
+            </button>
+
+            <select id="modelSelector" class="theme-panel theme-border border font-medium py-1.5 px-3 rounded-xl text-xs md:text-sm focus:outline-none cursor-pointer transition shadow-sm ml-auto md:ml-0 md:mx-auto">
+                <option value="flash-lite">⚡ Lite (Скорость)</option>
+                <option value="flash" selected>✨ Flash (Зрение + Баланс)</option>
+                <option value="pro">🔥 Pro (Логика + Код)</option>
+            </select>
+        </div>
+
+        <div class="messages-wrapper custom-scroll" id="chatArea">
+            <div class="p-4 md:p-6 space-y-6">
+                <div class="flex flex-col items-center justify-center h-full text-center space-y-3" id="welcomeScreen">
+                    <div class="w-16 h-16 theme-accent rounded-2xl flex items-center justify-center shadow-2xl mb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-white"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg>
+                    </div>
+                    <div class="text-3xl md:text-4xl font-bold tracking-tight">EasyGPT Workspace</div>
+                    <p class="max-w-md text-sm px-4 theme-text-muted">Интеллектуальная система нового поколения. Загружайте изображения, пишите код, решайте задачи.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-wrapper p-4 glass-header border-t theme-border">
+            <div id="imagePreviewContainer" class="hidden max-w-3xl mx-auto w-full mb-2">
+                <div class="relative w-16 h-16 theme-panel rounded-xl overflow-hidden border theme-border">
+                    <img id="imagePreview" class="w-full h-full object-cover">
+                    <button onclick="clearSelectedImage()" class="absolute top-0.5 right-0.5 bg-black/80 p-1 rounded-full text-white text-[9px]">✕</button>
+                </div>
+            </div>
+
+            <div class="max-w-3xl mx-auto relative theme-panel rounded-2xl border theme-border p-2 flex flex-col shadow-lg">
+                <textarea id="userInput" rows="1" class="w-full bg-transparent border-0 placeholder-gray-500 p-2 focus:outline-none resize-none text-sm max-h-32" placeholder="Напишите сообщение..."></textarea>
+                
+                <div class="flex items-center justify-between pt-2 px-2 mt-1">
+                    <label class="cursor-pointer theme-text-muted hover:text-white transition p-1 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 11.75l-10.94 10.949a1.5 1.5 0 0 1-2.122-2.121l7.693-7.693" /></svg>
+                        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="previewImage(this)">
+                    </label>
+
+                    <button onclick="sendMessage()" id="sendBtn" class="theme-accent p-1.5 rounded-xl transition shadow text-white hover:opacity-80">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="text-center text-[10px] theme-text-muted pt-2">Powered by EasyAi Core</div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="theme-sidebar w-full max-w-md rounded-2xl border theme-border shadow-2xl p-6 relative overflow-hidden">
+            <button onclick="closeSettings()" class="absolute top-4 right-4 theme-text-muted hover:text-white">✕</button>
+            <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 theme-text-accent"><path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.905 1.905 0 0 0-2.207.74l-1.122 1.99a1.904 1.904 0 0 0 .37 2.246l1.258 1.07c.113.097.196.25.196.422s-.083.325-.196.422l-1.258 1.07a1.904 1.904 0 0 0-.37 2.246l1.122 1.99a1.905 1.905 0 0 0 2.207.74l1.018-.38c.116-.043.284-.032.45.084.32.22.646.407.986.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.34-.163.667-.35.986-.57.167-.116.335-.127.45-.084l1.018.38c.84.313 1.805-.12 2.207-.74l1.122-1.99a1.904 1.904 0 0 0-.37-2.246l-1.258-1.07a.64.64 0 0 1-.196-.422c0-.172.083-.325.196-.422l1.258-1.07a1.904 1.904 0 0 0 .37-2.246l-1.122-1.99a1.905 1.905 0 0 0-2.207-.74l-1.018.38c-.115.043-.283.032-.45-.083a7.49 7.49 0 0 0-.986-.57c-.182-.088-.277-.228-.297-.35l-.178-1.071a1.904 1.904 0 0 0-1.85-1.567h-1.844ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z" clip-rule="evenodd" /></svg>
+                Настройки
+            </h2>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-xs font-semibold theme-text-muted uppercase mb-3">Оформление интерфейса</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="setTheme('dark')" class="p-3 border theme-border rounded-xl flex items-center justify-center gap-2 hover:bg-white/5 transition" id="btnThemeDark">
+                            <div class="w-4 h-4 rounded-full bg-[#212121] border border-gray-500"></div> Dark
+                        </button>
+                        <button onclick="setTheme('purple')" class="p-3 border theme-border rounded-xl flex items-center justify-center gap-2 hover:bg-white/5 transition" id="btnThemePurple">
+                            <div class="w-4 h-4 rounded-full bg-[#1e1332] border border-[#8b5cf6]"></div> Purple
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="theme-border border-t">
+
+                <div>
+                    <label class="block text-xs font-semibold theme-text-muted uppercase mb-3">Сменить пароль</label>
+                    <div class="space-y-3">
+                        <input type="password" id="oldPwd" class="w-full p-2.5 theme-panel border theme-border rounded-lg text-sm focus:outline-none" placeholder="Текущий пароль">
+                        <input type="password" id="newPwd" class="w-full p-2.5 theme-panel border theme-border rounded-lg text-sm focus:outline-none" placeholder="Новый пароль (мин. 6 симв)">
+                        <button onclick="changePassword()" class="w-full p-2.5 theme-accent rounded-lg text-sm font-medium shadow-lg hover:opacity-90 transition">Обновить пароль</button>
+                        <div id="pwdStatus" class="text-xs text-center hidden"></div>
+                    </div>
+                </div>
+
+                <div class="pt-2 text-center">
+                    <a href="/logout" class="text-red-400 text-sm hover:underline">Выйти из аккаунта</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentChatId = null;
+        let autoScrollEnabled = true;
+
+        const savedTheme = localStorage.getItem('egpt_theme') || 'dark';
+        setTheme(savedTheme);
+
+        // Правильная глобальная конфигурация для marked.js с поддержкой таблиц и gfm
+        marked.use({
+            gfm: true, // Включает GitHub Flavored Markdown (включая таблицы)
+            breaks: true,
+            highlight: function(code, lang) {
+                const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+                return hljs.highlight(code, { language }).value;
+            }
+        });
+
+        function setTheme(themeName) {
+            document.body.setAttribute('data-theme', themeName);
+            localStorage.setItem('egpt_theme', themeName);
+            
+            document.getElementById('btnThemeDark').classList.remove('border-green-500', 'border-purple-500');
+            document.getElementById('btnThemePurple').classList.remove('border-green-500', 'border-purple-500');
+            
+            if(themeName === 'dark') document.getElementById('btnThemeDark').classList.add('border-green-500');
+            if(themeName === 'purple') document.getElementById('btnThemePurple').classList.add('border-purple-500');
+        }
+
+        function openSettings() { document.getElementById('settingsModal').classList.remove('hidden'); }
+        function closeSettings() { 
+            document.getElementById('settingsModal').classList.add('hidden'); 
+            document.getElementById('pwdStatus').classList.add('hidden');
+        }
+
+        async function changePassword() {
+            const oldP = document.getElementById('oldPwd').value;
+            const newP = document.getElementById('newPwd').value;
+            const statusBox = document.getElementById('pwdStatus');
+            
+            statusBox.classList.remove('hidden', 'text-green-400', 'text-red-400');
+            
+            if(!oldP || !newP) {
+                statusBox.textContent = "Заполните оба поля";
+                statusBox.classList.add('text-red-400');
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('old_password', oldP);
+            fd.append('new_password', newP);
+
+            const res = await fetch('/api/settings/password', { method: 'POST', body: fd });
+            const data = await res.json();
+
+            if(data.error) {
+                statusBox.textContent = data.error;
+                statusBox.classList.add('text-red-400');
+            } else {
+                statusBox.textContent = data.success;
+                statusBox.classList.add('text-green-400');
+                document.getElementById('oldPwd').value = '';
+                document.getElementById('newPwd').value = '';
+                setTimeout(closeSettings, 2000);
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        const textarea = document.getElementById('userInput');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+        });
+
+        async function createNewChat() {
+            await fetch('/api/chat/new', { method: 'POST' });
+            window.location.reload();
+        }
+
+        function scrollToBottom(force = false) {
+            if (!autoScrollEnabled && !force) return;
+            
+            const wrapper = document.querySelector('.messages-wrapper');
+            if (wrapper) {
+                wrapper.scrollTop = wrapper.scrollHeight;
+                requestAnimationFrame(() => {
+                    wrapper.scrollTop = wrapper.scrollHeight;
+                });
+            }
+        }
+
+        async function selectChat(chatId) {
+            currentChatId = chatId;
+            document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('theme-panel'));
+            const activeItem = document.getElementById(`chat-item-${chatId}`);
+            if (activeItem) activeItem.classList.add('theme-panel');
+            
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            if (welcomeScreen) welcomeScreen.style.display = 'none';
+            
+            const chatArea = document.getElementById('chatArea');
+            const messagesContainer = chatArea.querySelector('.space-y-6');
+            if (messagesContainer) messagesContainer.innerHTML = '';
+            else chatArea.innerHTML = '<div class="p-4 md:p-6 space-y-6" id="messagesInner"></div>';
+            
+            const innerContainer = document.getElementById('messagesInner') || chatArea.querySelector('.space-y-6');
+            
+            const res = await fetch(`/api/chat/${chatId}/messages`);
+            const data = await res.json();
+
+            if (innerContainer) {
+                data.messages.forEach(msg => appendMessageToContainer(innerContainer, msg.role, msg.content, msg.image_path));
+            }
+            
+            setTimeout(() => scrollToBottom(true), 100);
+            if (window.innerWidth < 768) toggleSidebar();
+        }
+        
+        function appendMessageToContainer(container, role, content, imgPath = null) {
+            const isUser = role === 'user';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} py-2`;
+
+            if (isUser) {
+                msgDiv.innerHTML = `
+                    <div class="max-w-[85%] md:max-w-2xl theme-panel p-3.5 rounded-2xl shadow-sm text-sm border theme-border">
+                        ${imgPath ? `<img src="${imgPath}" class="max-w-xs max-h-48 object-cover rounded-lg mb-2 border theme-border">` : ''}
+                        <div class="whitespace-pre-wrap">${escapeHtml(content)}</div>
+                    </div>`;
+            } else {
+                // Прямой парсинг через marked.js — теперь он сам обрабатывает таблицы идеально!
+                let parsedContent = marked.parse(content || '');
+                msgDiv.innerHTML = `
+                    <div class="max-w-[90%] md:max-w-2xl flex gap-3.5 text-sm">
+                        <div class="w-8 h-8 rounded-xl theme-accent flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">AI</div>
+                        <div class="pt-0.5 space-y-2 w-full overflow-hidden">
+                            <div class="font-semibold text-xs theme-text-muted">EasyGPT 5.6</div>
+                            <div class="message-text leading-relaxed">${parsedContent}</div>
+                        </div>
+                    </div>`;
+            }
+            container.appendChild(msgDiv);
+            return msgDiv;
+        }
+
+        function appendMessage(role, content, imgPath = null) {
+            const chatArea = document.getElementById('chatArea');
+            let innerContainer = document.getElementById('messagesInner');
+            
+            if (!innerContainer) {
+                chatArea.innerHTML = '<div class="p-4 md:p-6 space-y-6" id="messagesInner"></div>';
+                innerContainer = document.getElementById('messagesInner');
+            }
+            
+            const result = appendMessageToContainer(innerContainer, role, content, imgPath);
+            addCopyButtons();
+            scrollToBottom();
+            return result;
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').src = e.target.result;
+                    document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function clearSelectedImage() {
+            document.getElementById('fileInput').value = "";
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+        }
+
+        async function sendMessage() {
+            const text = textarea.value.trim();
+            const fileInput = document.getElementById('fileInput');
+            const modelSelector = document.getElementById('modelSelector');
+            
+            if (!text && !fileInput.files[0]) return;
+            if (!currentChatId) { alert("Выберите или создайте чат!"); return; }
+
+            let localImgUrl = fileInput.files[0] ? document.getElementById('imagePreview').src : null;
+            appendMessage('user', text, localImgUrl);
+            
+            textarea.value = '';
+            textarea.style.height = 'auto';
+            clearSelectedImage();
+
+            const aiMsgDiv = appendMessage('assistant', '<span class="theme-text-muted animate-pulse">Думаю...</span>');
+            const aiTextContainer = aiMsgDiv.querySelector('.message-text');
+
+            const formData = new FormData();
+            formData.append('chat_id', currentChatId);
+            formData.append('message', text);
+            formData.append('model_type', modelSelector.value);
+            if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/chat/stream', { method: 'POST', body: formData });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedText = "";
+                aiTextContainer.innerHTML = "";
+
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const chunkStr = decoder.decode(value);
+                    for (const line of chunkStr.split('\n')) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const parsed = JSON.parse(line.substring(6));
+                                if (parsed.chunk) {
+                                    accumulatedText += parsed.chunk;
+                                    // Рендерим напрямую через marked.js во время стрима
+                                    aiTextContainer.innerHTML = marked.parse(accumulatedText);
+                                    scrollToBottom();
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+                addCopyButtons();
+                scrollToBottom(true);
+            } catch (err) { 
+                aiTextContainer.innerHTML = "❌ Ошибка соединения.";
+                scrollToBottom(true);
+            }
+        }
+
+        function addCopyButtons() {
+            document.querySelectorAll('pre').forEach(pre => {
+                if (pre.querySelector('.copy-btn')) return;
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.innerText = 'Копировать';
+                btn.onclick = () => {
+                    const codeElem = pre.querySelector('code');
+                    const textToCopy = codeElem ? codeElem.innerText : pre.innerText;
+                    navigator.clipboard.writeText(textToCopy);
+                    btn.innerText = 'В буфере! ✅';
+                    setTimeout(() => btn.innerText = 'Копировать', 2000);
+                };
+                pre.appendChild(btn);
+            });
+        }
+
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { 
+                e.preventDefault(); 
+                sendMessage(); 
+            }
+        });
+        
+        const scrollContainer = document.querySelector('.messages-wrapper');
+        if (scrollContainer) {
+            scrollContainer.addEventListener('scroll', () => {
+                const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+                autoScrollEnabled = (scrollContainer.scrollTop >= maxScroll - 50);
+            });
+        }
+    </script>
+</body>
+</html>
